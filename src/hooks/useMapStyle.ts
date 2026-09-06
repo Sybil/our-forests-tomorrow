@@ -1,9 +1,20 @@
 import { useAtomValue } from 'jotai'
 import { useMemo } from 'react'
-import { currentRCPAtom, currentSpeciesAtom, timeStepAtom } from '../atoms'
+
+import {
+  layers as protomapsLayers,
+  namedFlavor,
+} from '@protomaps/basemaps'
+
+import {
+  currentRCPAtom,
+  currentSpeciesAtom,
+  timeStepAtom,
+} from '../atoms'
+
 import { THEME, TIME_STEPS } from '../constants'
-import basemap from './style.json'
-import { CONIFERS } from '../constants_common'
+
+const PROTOMAPS_URL = 'pmtiles:///maps/europe.pmtiles'
 
 function useMapStyle() {
   const species = useAtomValue(currentSpeciesAtom)
@@ -12,7 +23,12 @@ function useMapStyle() {
 
   return useMemo(() => {
     const fut = TIME_STEPS.indexOf(timeStep)
-    return getMapStyle({ rcp, fut, species })
+
+    return getMapStyle({
+      rcp,
+      fut,
+      species,
+    })
   }, [species, timeStep, rcp])
 }
 
@@ -25,135 +41,76 @@ function getMapStyle({
   fut: number
   species: string
 }) {
-  const stable = [
-    'all',
-    ['==', ['get', 'nat_1'], 1],
-    ['>', ['get', `sdms_rcp${rcp}_fut${fut}_1`], 500],
-  ]
-  const decolonized = [
-    'all',
-    ['==', ['get', 'nat_1'], 1],
-    ['<', ['get', `sdms_rcp${rcp}_fut${fut}_1`], 500],
-  ]
-  const suitable = [
-    'all',
-    ['==', ['get', 'nat_1'], 0],
-    ['>', ['get', `sdms_rcp${rcp}_fut${fut}_1`], 500],
-  ]
+  const basemapLayers = protomapsLayers(
+    'protomaps',
+    namedFlavor('white'),
+    {
+      lang: 'en',
+    }
+  )
 
-  const filter =
+  const valueProperty =
     fut === 0
-      ? ['==', ['get', 'nat_1'], 1]
-      : ['any', stable, decolonized, suitable]
-
-  const fillColor =
-    fut === 0
-      ? THEME.colors.stable
-      : [
-          'case',
-          stable,
-          THEME.colors.stable,
-          decolonized,
-          THEME.colors.decolonized,
-          suitable,
-          THEME.colors.suitable,
-          '#ff0fff',
-        ]
-
-  const type = CONIFERS.includes(species) ? 'conifer' : 'deciduous'
-
-  const icon =
-    fut === 0
-      ? `${type}_stable`
-      : [
-          'case',
-          stable,
-          `${type}_stable`,
-          decolonized,
-          `${type}_decolonized`,
-          suitable,
-          'seedling',
-          'seedling',
-        ]
+      ? 'current'
+      : fut === 1
+        ? 'fut1'
+        : fut === 2
+          ? 'fut2'
+          : 'fut3'
 
   const style = {
-    ...basemap,
+    version: 8 as const,
+
+    glyphs:
+      'https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf',
+
+    sprite:
+      'https://protomaps.github.io/basemaps-assets/sprites/v4/white',
+
     sources: {
-      ...basemap.sources,
-      hex10: {
-        type: 'vector',
-        tiles: [
-          `https://storage.googleapis.com/eu-trees4f-tiles/hex/tiles/${species}/10/{z}/{x}/{y}.pbf`,
-        ],
+      protomaps: {
+        type: 'vector' as const,
+        url: PROTOMAPS_URL,
+        attribution:
+          '© <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>',
       },
-      hex20: {
-        type: 'vector',
+
+      trees: {
+        type: 'vector' as const,
         tiles: [
-          `https://storage.googleapis.com/eu-trees4f-tiles/hex/tiles/${species}/20/{z}/{x}/{y}.pbf`,
+          `${window.location.origin}/pbf/${species}/{z}/{x}/{y}.pbf`,
         ],
+        minzoom: 2,
+        maxzoom: 8,
       },
     },
+
     layers: [
-      ...basemap.layers,
+      ...basemapLayers,
+
       {
-        id: 'hex10',
-        type: 'fill',
-        source: 'hex10',
-        'source-layer': `${species}_10_hex`,
-        filter,
+        id: 'trees',
+        type: 'fill' as const,
+        source: 'trees',
+        'source-layer': species,
         paint: {
-          'fill-color': fillColor,
-        },
-      },
-      {
-        id: 'hex10_trees',
-        type: 'symbol',
-        source: 'hex10',
-        'source-layer': `${species}_10_hex`,
-        layout: {
-          'icon-image': icon,
-        },
-        filter: [
-          'all',
-          filter,
-          [
-            '==',
-            ['%', ['get', 'id'], ['match', ['zoom'], 5, 15, 1]],
+          'fill-color': [
+            'interpolate',
+            ['linear'],
+            ['get', valueProperty],
+
             0,
+            THEME.colors.decolonized,
+
+            500,
+            THEME.colors.suitable,
+
+            1000,
+            THEME.colors.stable,
           ],
-        ],
-        paint: { 'icon-opacity': 0.5 },
-      },
-      {
-        id: 'hex20',
-        type: 'fill',
-        source: 'hex20',
-        'source-layer': `${species}_20_hex`,
-        filter,
-        paint: {
-          'fill-color': fillColor,
+
+          'fill-opacity': 0.85,
         },
-      },
-      {
-        id: 'hex20_trees',
-        type: 'symbol',
-        source: 'hex20',
-        'source-layer': `${species}_20_hex`,
-        layout: {
-          'icon-image': icon,
-          // 'icon-allow-overlap': true,
-        },
-        // filter,
-        filter: [
-          'all',
-          filter,
-          [
-            '==',
-            ['%', ['get', 'id'], ['match', ['zoom'], 2, 120, 3, 70, 30]],
-            0,
-          ],
-        ],
-        paint: { 'icon-opacity': 0.5 },
       },
     ],
   }
