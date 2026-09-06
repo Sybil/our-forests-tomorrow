@@ -64,7 +64,7 @@ function App() {
         regionsGeoJson={regionsGeoJson}
         countriesGeoJson={countriesGeoJson}
       >
-        <MapTopControls />
+        <MapTopControls species={speciesData} />
         {isMobile && <MapControls />}
       </MaplibreGLMap>
       {introCompleted && (
