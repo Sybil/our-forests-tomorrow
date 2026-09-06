@@ -14,7 +14,13 @@ import {
 
 import { THEME, TIME_STEPS } from '../constants'
 
-const PROTOMAPS_URL = 'pmtiles:///maps/europe.pmtiles'
+const BASE_URL =
+  process.env.NODE_ENV === 'production'
+    ? `${window.location.origin}${process.env.PUBLIC_URL}`
+    : window.location.origin
+
+const PROTOMAPS_URL =
+  `pmtiles://${BASE_URL}/maps/europe.pmtiles`
 
 function useMapStyle() {
   const species = useAtomValue(currentSpeciesAtom)
@@ -78,7 +84,7 @@ function getMapStyle({
       trees: {
         type: 'vector' as const,
         tiles: [
-          `${window.location.origin}/pbf/${species}/{z}/{x}/{y}.pbf`,
+          `${BASE_URL}/pbf/${species}/{z}/{x}/{y}.pbf`
         ],
         minzoom: 2,
         maxzoom: 8,
