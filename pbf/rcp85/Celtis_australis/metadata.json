@@ -1,0 +1,17 @@
+{
+"name": "/home/runner/work/our-forests-tomorrow/our-forests-tomorrow/public/pbf/rcp85/Celtis_australis",
+"description": "/home/runner/work/our-forests-tomorrow/our-forests-tomorrow/public/pbf/rcp85/Celtis_australis",
+"version": "2",
+"minzoom": "2",
+"maxzoom": "8",
+"center": "20.390625,44.588310,8",
+"bounds": "-9.333333,30.583333,42.166667,59.333333",
+"antimeridian_adjusted_bounds": "-9.333333,30.583333,42.166667,59.333333",
+"type": "overlay",
+"strategies": "[{},{},{\"tiny_polygons\":86},{},{},{},{},{},{}]",
+"tippecanoe_decisions": "{\"basezoom\":2,\"droprate\":2.5,\"retain_points_multiplier\":1}",
+"format": "pbf",
+"generator": "tippecanoe v2.49.0",
+"generator_options": "tippecanoe --force --no-tile-size-limit --no-feature-limit --no-tile-compression --base-zoom 2 --minimum-zoom 2 --maximum-zoom 8 --output-to-directory /home/runner/work/our-forests-tomorrow/our-forests-tomorrow/public/pbf/rcp85/Celtis_australis /home/runner/work/our-forests-tomorrow/our-forests-tomorrow/data/pbf_builder/geojson/rcp85/Celtis_australis.geojson",
+"json": "{\"vector_layers\":[{\"id\":\"Celtis_australis\",\"description\":\"\",\"minzoom\":2,\"maxzoom\":8,\"fields\":{\"current\":\"Number\",\"fut1\":\"Number\",\"fut2\":\"Number\",\"fut3\":\"Number\",\"species\":\"String\"}}],\"tilestats\":{\"layerCount\":1,\"layers\":[{\"layer\":\"Celtis_australis\",\"count\":32256,\"geometry\":\"Polygon\",\"attributeCount\":5,\"attributes\":[{\"attribute\":\"current\",\"count\":948,\"type\":\"number\",\"values\":[1,10,100,101,102,103,104,105,106,107,108,109,11,110,111,112,113,114,115,116,117,118,119,12,120,121,122,123,124,125,126,127,128,129,13,130,131,132,133,134,135,136,137,138,139,14,140,141,142,143,144,145,146,147,148,149,15,150,151,152,153,154,155,156,157,158,159,16,160,161,162,163,164,165,166,167,168,169,17,170,171,172,173,174,175,176,177,178,179,18,180,181,182,183,184,185,186,187,188,189],\"min\":1,\"max\":989},{\"attribute\":\"fut1\",\"count\":976,\"type\":\"number\",\"values\":[0,1,10,100,101,102,103,104,105,106,107,108,109,11,110,111,112,113,114,115,116,117,118,119,12,120,121,122,123,124,125,126,127,128,129,13,130,131,132,133,134,135,136,137,138,139,14,140,141,142,143,144,145,146,147,148,149,15,150,151,152,153,154,155,156,157,158,159,16,160,161,162,163,164,165,166,167,168,169,17,170,171,172,173,174,175,176,177,178,179,18,180,181,182,183,184,185,186,187,188],\"min\":0,\"max\":989},{\"attribute\":\"fut2\",\"count\":954,\"type\":\"number\",\"values\":[0,1,10,100,101,102,103,104,105,106,107,108,109,11,110,111,112,113,114,115,116,117,118,119,12,120,121,122,123,124,125,126,127,128,129,13,130,131,132,133,134,135,136,137,138,139,14,140,141,142,143,144,145,146,147,148,149,15,150,151,152,153,154,155,156,157,158,159,16,160,161,162,163,164,165,166,167,168,169,17,170,171,172,173,174,175,176,177,178,179,18,180,181,182,183,184,185,186,187,188],\"min\":0,\"max\":984},{\"attribute\":\"fut3\",\"count\":866,\"type\":\"number\",\"values\":[10,100,101,102,103,104,105,106,107,108,109,11,110,111,112,113,114,115,116,117,118,119,12,120,121,122,123,124,125,126,127,128,129,13,130,131,132,133,134,135,136,137,138,139,14,140,141,142,143,144,145,146,147,148,149,15,150,151,152,153,154,155,156,157,158,159,16,160,161,162,163,164,165,166,167,168,169,17,170,171,172,173,174,175,176,177,178,179,18,180,181,182,183,184,185,186,187,188,189,19],\"min\":2,\"max\":933},{\"attribute\":\"species\",\"count\":1,\"type\":\"string\",\"values\":[\"Celtis_australis\"]}]}]}}"
+}

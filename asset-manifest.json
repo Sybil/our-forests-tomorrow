@@ -1,14 +1,14 @@
 {
   "files": {
     "main.css": "/our-forests-tomorrow/static/css/main.b103c1da.css",
-    "main.js": "/our-forests-tomorrow/static/js/main.09b7c8a5.js",
+    "main.js": "/our-forests-tomorrow/static/js/main.bf39a6f3.js",
     "index.html": "/our-forests-tomorrow/index.html",
     "static/media/getFetch.cjs": "/our-forests-tomorrow/static/media/getFetch.c780682470504fffbd04.cjs",
     "main.b103c1da.css.map": "/our-forests-tomorrow/static/css/main.b103c1da.css.map",
-    "main.09b7c8a5.js.map": "/our-forests-tomorrow/static/js/main.09b7c8a5.js.map"
+    "main.bf39a6f3.js.map": "/our-forests-tomorrow/static/js/main.bf39a6f3.js.map"
   },
   "entrypoints": [
     "static/css/main.b103c1da.css",
-    "static/js/main.09b7c8a5.js"
+    "static/js/main.bf39a6f3.js"
   ]
 }
