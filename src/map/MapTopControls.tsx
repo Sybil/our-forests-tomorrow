@@ -1,6 +1,7 @@
 import { useAtom, useAtomValue } from 'jotai'
 import React from 'react'
 import {
+  currentRCPAtom,
   currentSpeciesAtom,
   introCompletedAtom,
   introStepAtom,
@@ -29,6 +30,7 @@ type MapTopControlsProps = {
 function MapTopControls({ species }: MapTopControlsProps) {
   const [currentTimestep, setCurrentTimestep] = useAtom(timeStepAtom)
   const [currentSpecies, setCurrentSpecies] = useAtom(currentSpeciesAtom)
+  const [currentRCP, setCurrentRCP] = useAtom(currentRCPAtom)
   const introStep = useAtomValue(introStepAtom)
   const introCompleted = useAtomValue(introCompletedAtom)
   const [speciesMenuOpen, setSpeciesMenuOpen] = React.useState(false)
@@ -98,7 +100,17 @@ function MapTopControls({ species }: MapTopControlsProps) {
         </MapTopControlsSectionTitle>
 
         <ButtonBar>
-          <Button active>
+          <Button
+            active={currentRCP === '45'}
+            onMouseDown={() => setCurrentRCP('45')}
+          >
+            rcp4.5<em> · Emissions peak mid-century</em>
+          </Button>
+        
+          <Button
+            active={currentRCP === '85'}
+            onMouseDown={() => setCurrentRCP('85')}
+          >
             rcp8.5<em> · Business as usual</em>
           </Button>
         </ButtonBar>

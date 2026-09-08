@@ -121,7 +121,7 @@ function getMapStyle({
       trees: {
         type: 'vector' as const,
         tiles: [
-          `${BASE_URL}/pbf/${species}/{z}/{x}/{y}.pbf`
+          `${BASE_URL}/pbf/rcp${rcp}/${species}/{z}/{x}/{y}.pbf`
         ],
         minzoom: 2,
         maxzoom: 8,

@@ -1,7 +1,11 @@
 # EU-Trees4F ENS-SDMS dataset
 download_url: "https://ies-ows.jrc.ec.europa.eu/efdac/download/EU-Trees4F/EU-Trees4F_ens-sdms.zip"
 
-scenario: "rcp85"
+# Climate scenarios to generate.
+scenarios:
+  - rcp45
+  - rcp85
+
 model: "ens-sdms"
 
 # Number of pixels processed per raster chunk.
@@ -20,4 +24,3 @@ force: true
 tippecanoe:
   min_zoom: 2
   max_zoom: 8
-

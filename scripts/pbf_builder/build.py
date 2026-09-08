@@ -23,7 +23,6 @@ ROOT = SCRIPT_DIR.parents[1]
 CONFIG_PATH = SCRIPT_DIR / "config.yaml"
 
 DATA = ROOT / "data" / "pbf_builder"
-
 RAW = DATA / "raw"
 EXTRACTED = DATA / "extracted"
 GEOJSON = DATA / "geojson"
@@ -31,6 +30,8 @@ GEOJSON = DATA / "geojson"
 PBF = ROOT / "public" / "pbf"
 
 ZIP_PATH = RAW / "EU-Trees4F_ens-sdms.zip"
+
+SUPPORTED_SCENARIOS = ("rcp45", "rcp85")
 
 
 def load_config():
@@ -43,12 +44,24 @@ def ensure_directories():
         directory.mkdir(parents=True, exist_ok=True)
 
 
+def validate_scenario(scenario: str):
+    scenario = scenario.lower()
+
+    if scenario not in SUPPORTED_SCENARIOS:
+        raise ValueError(
+            f"Unsupported scenario '{scenario}'. "
+            f"Expected one of: {', '.join(SUPPORTED_SCENARIOS)}"
+        )
+
+    return scenario
+
+
 def download_dataset(url: str):
     if ZIP_PATH.exists():
         print(f"[download] Archive already exists: {ZIP_PATH}")
         return
 
-    print(f"[download] Downloading:")
+    print("[download] Downloading:")
     print(f"           {url}")
     print(f"           -> {ZIP_PATH}")
 
@@ -83,23 +96,32 @@ def extract_dataset():
 
 
 def all_tifs():
-    return list(EXTRACTED.rglob("*.tif")) + list(EXTRACTED.rglob("*.tiff"))
+    return list(EXTRACTED.rglob("*.tif")) + list(
+        EXTRACTED.rglob("*.tiff")
+    )
 
 
 def normalise_name(path: Path) -> str:
     return path.name.lower()
 
 
-def find_species_files(species: str):
+def find_species_files(species: str, scenario: str):
     """
-    Find the current and RCP8.5 potential suitability probability rasters.
+    Find the current baseline and future potential suitability
+    probability rasters for a species and climate scenario.
+
+    The current 2005 raster is shared between scenarios.
+    Future rasters are scenario-specific.
     """
+
+    scenario = validate_scenario(scenario)
 
     files = all_tifs()
     prefix = f"{species}_ens-sdms_"
 
     matching = [
-        p for p in files
+        p
+        for p in files
         if p.name.startswith(prefix)
     ]
 
@@ -110,7 +132,8 @@ def find_species_files(species: str):
 
     def find_exact(suffix: str):
         matches = [
-            p for p in matching
+            p
+            for p in matching
             if p.name.endswith(suffix)
         ]
 
@@ -119,18 +142,29 @@ def find_species_files(species: str):
                 f"Missing raster for '{species}': *{suffix}"
             )
 
+        if len(matches) > 1:
+            print(
+                f"[warning] Multiple rasters found for "
+                f"'{species}' matching '*{suffix}':"
+            )
+
+            for match in matches:
+                print(f"           {match}")
+
         return matches[0]
 
     return {
-        "current": find_exact("cur2005_prob_pot.tif"),
+        "current": find_exact(
+            "cur2005_prob_pot.tif"
+        ),
         "fut1": find_exact(
-            "rcp85_fut2035_prob_pot.tif"
+            f"{scenario}_fut2035_prob_pot.tif"
         ),
         "fut2": find_exact(
-            "rcp85_fut2065_prob_pot.tif"
+            f"{scenario}_fut2065_prob_pot.tif"
         ),
         "fut3": find_exact(
-            "rcp85_fut2095_prob_pot.tif"
+            f"{scenario}_fut2095_prob_pot.tif"
         ),
     }
 
@@ -140,15 +174,16 @@ def discover_species():
     Extract species names from filenames.
 
     Expected examples:
-
       Abies_alba_ens-sdms_cur_bin_nat.tif
-      Abies_alba_ens-sdms_rcp85_fut1_prob_pot.tif
+      Abies_alba_ens-sdms_rcp45_fut2035_prob_pot.tif
+      Abies_alba_ens-sdms_rcp85_fut2035_prob_pot.tif
     """
 
     species = set()
 
     pattern = re.compile(
-        r"^(?P<species>.+?)_ens-sdms_(?:cur|rcp45|rcp85)_",
+        r"^(?P<species>.+?)_ens-sdms_"
+        r"(?:cur|rcp45|rcp85)_",
         re.IGNORECASE,
     )
 
@@ -156,7 +191,9 @@ def discover_species():
         match = pattern.match(tif.stem)
 
         if match:
-            species.add(match.group("species"))
+            species.add(
+                match.group("species")
+            )
 
     return sorted(species)
 
@@ -221,17 +258,17 @@ def iter_pixels(paths, chunk_size):
     is cropped to the same spatial extent without interpolation.
     """
 
-    with rasterio.open(paths["current"]) as src_current, \
-         rasterio.open(paths["fut1"]) as src_fut1, \
-         rasterio.open(paths["fut2"]) as src_fut2, \
-         rasterio.open(paths["fut3"]) as src_fut3:
-
+    with (
+        rasterio.open(paths["current"]) as src_current,
+        rasterio.open(paths["fut1"]) as src_fut1,
+        rasterio.open(paths["fut2"]) as src_fut2,
+        rasterio.open(paths["fut3"]) as src_fut3,
+    ):
         width = src_fut1.width
         height = src_fut1.height
 
         transform = src_fut1.transform
 
-        # Determine the corresponding window in the current raster.
         current_window = rasterio.windows.from_bounds(
             *src_fut1.bounds,
             transform=src_current.transform,
@@ -242,7 +279,11 @@ def iter_pixels(paths, chunk_size):
             chunk_size // width,
         )
 
-        for row_start in range(0, height, rows_per_chunk):
+        for row_start in range(
+            0,
+            height,
+            rows_per_chunk,
+        ):
             row_height = min(
                 rows_per_chunk,
                 height - row_start,
@@ -309,10 +350,21 @@ def iter_pixels(paths, chunk_size):
             xs = np.asarray(xs).ravel()
             ys = np.asarray(ys).ravel()
 
-            current = current.astype(np.float32).ravel()
-            fut1 = fut1.astype(np.float32).ravel()
-            fut2 = fut2.astype(np.float32).ravel()
-            fut3 = fut3.astype(np.float32).ravel()
+            current = current.astype(
+                np.float32
+            ).ravel()
+
+            fut1 = fut1.astype(
+                np.float32
+            ).ravel()
+
+            fut2 = fut2.astype(
+                np.float32
+            ).ravel()
+
+            fut3 = fut3.astype(
+                np.float32
+            ).ravel()
 
             mask = (
                 np.isfinite(current)
@@ -342,7 +394,12 @@ def iter_pixels(paths, chunk_size):
                 transform,
             )
 
-def feature_generator(species: str, paths, chunk_size):
+
+def feature_generator(
+    species: str,
+    paths,
+    chunk_size,
+):
     for (
         xs,
         ys,
@@ -351,8 +408,10 @@ def feature_generator(species: str, paths, chunk_size):
         fut2,
         fut3,
         transform,
-    ) in iter_pixels(paths, chunk_size):
-
+    ) in iter_pixels(
+        paths,
+        chunk_size,
+    ):
         cell_width = abs(transform.a)
         cell_height = abs(transform.e)
 
@@ -400,13 +459,37 @@ def feature_generator(species: str, paths, chunk_size):
             }
 
 
-def write_geojson(species: str, paths, chunk_size):
-    output = GEOJSON / f"{species}.geojson"
+def write_geojson(
+    species: str,
+    scenario: str,
+    paths,
+    chunk_size,
+):
+    scenario = validate_scenario(scenario)
 
-    print(f"[geojson] {species}")
+    scenario_dir = GEOJSON / scenario
+    scenario_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
-    with open(output, "w", encoding="utf-8") as f:
-        f.write('{"type":"FeatureCollection","features":[')
+    output = (
+        scenario_dir
+        / f"{species}.geojson"
+    )
+
+    print(
+        f"[geojson] {scenario} / {species}"
+    )
+
+    with open(
+        output,
+        "w",
+        encoding="utf-8",
+    ) as f:
+        f.write(
+            '{"type":"FeatureCollection","features":['
+        )
 
         first = True
 
@@ -431,13 +514,30 @@ def write_geojson(species: str, paths, chunk_size):
     return output
 
 
-def run_tippecanoe(species: str, geojson: Path, config):
-    output_dir = PBF / species
+def run_tippecanoe(
+    species: str,
+    scenario: str,
+    geojson: Path,
+    config,
+):
+    scenario = validate_scenario(scenario)
 
-    if output_dir.exists() and config["force"]:
+    output_dir = (
+        PBF
+        / scenario
+        / species
+    )
+
+    if (
+        output_dir.exists()
+        and config["force"]
+    ):
         shutil.rmtree(output_dir)
 
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
     command = [
         "tippecanoe",
@@ -467,29 +567,56 @@ def run_tippecanoe(species: str, geojson: Path, config):
     return output_dir
 
 
-def process_species(species: str, config):
+def process_species(
+    species: str,
+    scenario: str,
+    config,
+):
+    scenario = validate_scenario(scenario)
+
     print()
     print("=" * 70)
-    print(f"[species] {species}")
+    print(
+        f"[species] {species}"
+    )
+    print(
+        f"[scenario] {scenario}"
+    )
     print("=" * 70)
 
-    paths = find_species_files(species)
+    paths = find_species_files(
+        species,
+        scenario,
+    )
 
-    print(f"[input] current = {paths['current']}")
-    print(f"[input] fut1    = {paths['fut1']}")
-    print(f"[input] fut2    = {paths['fut2']}")
-    print(f"[input] fut3    = {paths['fut3']}")
+    print(
+        f"[input] current = {paths['current']}"
+    )
+
+    print(
+        f"[input] fut1    = {paths['fut1']}"
+    )
+
+    print(
+        f"[input] fut2    = {paths['fut2']}"
+    )
+
+    print(
+        f"[input] fut3    = {paths['fut3']}"
+    )
 
     check_rasters(paths)
 
     geojson = write_geojson(
         species,
+        scenario,
         paths,
         config["chunk_size"],
     )
 
     output = run_tippecanoe(
         species,
+        scenario,
         geojson,
         {
             "min_zoom": config["min_zoom"],
@@ -499,9 +626,13 @@ def process_species(species: str, config):
     )
 
     if not config["keep_geojson"]:
-        geojson.unlink(missing_ok=True)
+        geojson.unlink(
+            missing_ok=True
+        )
 
-    print(f"[done] {species} -> {output}")
+    print(
+        f"[done] {scenario} / {species} -> {output}"
+    )
 
     return species
 
@@ -514,14 +645,108 @@ def check_tippecanoe():
         )
 
 
+def build_scenario(
+    scenario: str,
+    species,
+    config,
+):
+    scenario = validate_scenario(scenario)
+
+    print()
+    print("=" * 70)
+    print(
+        f"[build] Scenario: {scenario}"
+    )
+    print(
+        f"[build] Species: {len(species)}"
+    )
+    print("=" * 70)
+
+    worker_count = int(
+        config.get("workers", 1)
+    )
+
+    process_config = {
+        "min_zoom": config["tippecanoe"][
+            "min_zoom"
+        ],
+        "max_zoom": config["tippecanoe"][
+            "max_zoom"
+        ],
+        "force": config["force"],
+        "chunk_size": config["chunk_size"],
+        "keep_geojson": config[
+            "keep_geojson"
+        ],
+    }
+
+    if worker_count <= 1:
+        for species_name in species:
+            process_species(
+                species_name,
+                scenario,
+                process_config,
+            )
+
+    else:
+        with ThreadPoolExecutor(
+            max_workers=worker_count
+        ) as executor:
+            futures = {
+                executor.submit(
+                    process_species,
+                    species_name,
+                    scenario,
+                    process_config,
+                ): species_name
+                for species_name in species
+            }
+
+            for future in as_completed(
+                futures
+            ):
+                species_name = futures[
+                    future
+                ]
+
+                try:
+                    future.result()
+
+                except Exception as exc:
+                    print(
+                        f"[ERROR] "
+                        f"{scenario} / "
+                        f"{species_name}: "
+                        f"{exc}",
+                        file=sys.stderr,
+                    )
+
+                    raise
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description="Build CRTE PBF tiles from EU-Trees4F ENS-SDMS."
+        description=(
+            "Build CRTE PBF tiles from "
+            "EU-Trees4F ENS-SDMS."
+        )
     )
 
     parser.add_argument(
         "--species",
-        help="Process only this species, e.g. Quercus_robur",
+        help=(
+            "Process only this species, "
+            "e.g. Quercus_robur"
+        ),
+    )
+
+    parser.add_argument(
+        "--scenario",
+        choices=SUPPORTED_SCENARIOS,
+        help=(
+            "Climate scenario to process. "
+            "Defaults to all configured scenarios."
+        ),
     )
 
     parser.add_argument(
@@ -553,98 +778,110 @@ def main():
 
     if not species:
         raise RuntimeError(
-            "No species found in extracted EU-Trees4F files."
+            "No species found in extracted "
+            "EU-Trees4F files."
         )
 
     if args.list:
         for name in species:
             print(name)
+
         return
+
+    configured_scenarios = [
+        validate_scenario(scenario)
+        for scenario in config.get(
+            "scenarios",
+            SUPPORTED_SCENARIOS,
+        )
+    ]
+
+    if args.scenario:
+        scenarios = [
+            validate_scenario(args.scenario)
+        ]
+
+    else:
+        scenarios = configured_scenarios
 
     if args.species:
         if args.species not in species:
             print("Species available:")
+
             for name in species:
                 print(f"  {name}")
 
             raise RuntimeError(
-                f"Unknown species: {args.species}"
+                f"Unknown species: "
+                f"{args.species}"
             )
 
-        process_species(
-            args.species,
-            {
-                "min_zoom": config["tippecanoe"]["min_zoom"],
-                "max_zoom": config["tippecanoe"]["max_zoom"],
-                "force": config["force"],
-                "chunk_size": config["chunk_size"],
-                "keep_geojson": config["keep_geojson"],
-            },
-        )
+        process_config = {
+            "min_zoom": config[
+                "tippecanoe"
+            ]["min_zoom"],
+            "max_zoom": config[
+                "tippecanoe"
+            ]["max_zoom"],
+            "force": config["force"],
+            "chunk_size": config[
+                "chunk_size"
+            ],
+            "keep_geojson": config[
+                "keep_geojson"
+            ],
+        }
+
+        for scenario in scenarios:
+            process_species(
+                args.species,
+                scenario,
+                process_config,
+            )
 
         return
 
     if not args.all:
         print("Detected species:")
+
         for name in species:
             print(f"  {name}")
 
         print()
         print("Run:")
-        print("  python build.py --species Quercus_robur")
+        print(
+            "  python build.py "
+            "--species Quercus_robur"
+        )
+
         print()
         print("or:")
-        print("  python build.py --all")
+
+        print(
+            "  python build.py "
+            "--species Quercus_robur "
+            "--scenario rcp45"
+        )
+
+        print()
+        print("or:")
+
+        print(
+            "  python build.py --all"
+        )
 
         return
 
-    print(f"[build] {len(species)} species detected")
-
-    worker_count = int(config.get("workers", 1))
-
-    process_config = {
-        "min_zoom": config["tippecanoe"]["min_zoom"],
-        "max_zoom": config["tippecanoe"]["max_zoom"],
-        "force": config["force"],
-        "chunk_size": config["chunk_size"],
-        "keep_geojson": config["keep_geojson"],
-    }
-
-    if worker_count <= 1:
-        for species_name in species:
-            process_species(
-                species_name,
-                process_config,
-            )
-    else:
-        with ThreadPoolExecutor(
-            max_workers=worker_count
-        ) as executor:
-
-            futures = {
-                executor.submit(
-                    process_species,
-                    species_name,
-                    process_config,
-                ): species_name
-                for species_name in species
-            }
-
-            for future in as_completed(futures):
-                species_name = futures[future]
-
-                try:
-                    future.result()
-                except Exception as exc:
-                    print(
-                        f"[ERROR] {species_name}: {exc}",
-                        file=sys.stderr,
-                    )
-                    raise
+    for scenario in scenarios:
+        build_scenario(
+            scenario,
+            species,
+            config,
+        )
 
     print()
     print("=" * 70)
-    print("[DONE] All species processed")
+    print("[DONE] All scenarios processed")
     print("=" * 70)
 
 
