@@ -55,7 +55,8 @@ function getMapStyle({
     }
   )
 
-  const valueProperty =
+  const current = ['get', 'current']
+  const future_var_name =
     fut === 0
       ? 'current'
       : fut === 1
@@ -63,6 +64,42 @@ function getMapStyle({
         : fut === 2
           ? 'fut2'
           : 'fut3'
+  const future = ['get', future_var_name]
+
+  const stable = [
+    'all',
+    ['>=', current, 500],
+    ['>=', future, 500],
+  ]
+  const decolonized = [
+    'all',
+    ['>=', current, 500],
+    ['<', future, 500],
+  ]
+  const suitable = [
+    'all',
+    ['<', current, 500],
+    ['>=', future, 500],
+  ]
+
+  const filter =
+    fut === 0
+      ? ['>=', current, 500]
+      : ['any', stable, decolonized, suitable]
+
+  const fillColor =
+    fut === 0
+      ? THEME.colors.stable
+      : [
+          'case',
+          stable,
+          THEME.colors.stable,
+          decolonized,
+          THEME.colors.decolonized,
+          suitable,
+          THEME.colors.suitable,
+          THEME.colors.stable,
+        ]
 
   const style = {
     version: 8 as const,
@@ -99,22 +136,9 @@ function getMapStyle({
         type: 'fill' as const,
         source: 'trees',
         'source-layer': species,
+        filter,
         paint: {
-          'fill-color': [
-            'interpolate',
-            ['linear'],
-            ['get', valueProperty],
-
-            0,
-            THEME.colors.decolonized,
-
-            500,
-            THEME.colors.suitable,
-
-            1000,
-            THEME.colors.stable,
-          ],
-
+          'fill-color': fillColor,
           'fill-opacity': 0.85,
         },
       },
